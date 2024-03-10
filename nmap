@@ -1,0 +1,37 @@
+                                                                                                  Options de Scan Nmap
+
+ATTENTION : NE PAS OUBLIER QUE NMAP INTERPRETE LES RESULTAT ET POUR LUI LES PORT SONT ASSOCIE A UN PROTOCOLE PRECIS N OUBLIEZ PAS QUE CE N EST PAS FORCEMENT LE CAS 
+
+
+maniére de scan
+nmap "ip"              scanner une IP                                                          
+nmap "domaine"         scanner un nom de domaine
+nmap -iL [ipList.txt]  scanner différentes ip dans un fichier
+nmap 192.168.1.1-254   scanner une plage ip
+
+gestion des ports 
+-sn              desactive le scan des ports
+-p-              scan tous les ports
+-p22-110         scan tous les ports entre 22 et 110
+-p22,25          scan seulement les ports spécifiés 22 et 25
+-F               scan les 100 ports les plus fréquents
+-g               spécifie le port source pour le scan
+--top-ports=<num> scan les ports spécifiés définis comme les plus fréquents
+
+gestion des services 
+-sV              scan les services découverts pour obtenir leurs versions
+
+ les Types de Scans
+-sS              effectue un scan TCP SYN
+-sA              effectue un scan TCP ACK
+-sU              effectue un scan UDP
+-Pn              désactive les requetes ICMP Echo
+-PE              effectue le scan ping en utilisant des requêtes ICMP Echo contre la cible
+
+gestion des os 
+
+-O               Effectue un scan de détection d'OS pour déterminer l'OS de la cible
+-A               Effectue la détection d'OS, la détection de services et des scans de traceroute
+
+
+
